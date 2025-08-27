@@ -16,7 +16,308 @@ use serde_json::Value;
 
 use std::path::PathBuf;
 
+// Add these commands to your existing commands.rs file
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Expense {
+    pub id: i32,
+    pub product_name: String,
+    pub cost_price: f64,
+    pub quantity: i32,
+    pub total_cost: f64,
+    pub date: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExpensesInvoiceData {
+    pub period: String,
+    pub expenses: Vec<Expense>,
+    pub total_cost: f64,
+}
+
+
+
+#[tauri::command]
+async fn get_expenses_by_year(
+    state: tauri::State<'_, AppState>,
+    year: i32,
+) -> Result<ExpensesInvoiceData, String> {
+    let db_lock = state.db.lock().await;
+    let db = &*db_lock;
+
+    task::block_in_place(|| {
+        // This query calculates expenses based on initial purchases and any manual quantity updates
+        let mut stmt = db.prepare(
+           "WITH product_changes AS (
+                SELECT 
+                    p.id,
+                    p.name as product_name,
+                    p.cost_price,
+                    -- Calculate initial purchase quantity + any manual increases
+                    (COALESCE((
+                        SELECT SUM(s.quantity) 
+                        FROM sales s 
+                        WHERE s.product_name = p.name
+                    ), 0) + p.quantity) as total_purchased_quantity,
+                    p.created_at,
+                    p.created_at as date
+                FROM products p
+                WHERE strftime('%Y', p.created_at) = ?1
+            )
+            SELECT 
+                id,
+                product_name,
+                cost_price,
+                total_purchased_quantity as quantity,
+                (cost_price * total_purchased_quantity) as total_cost,
+                date,
+                created_at
+            FROM product_changes
+            ORDER BY created_at DESC"
+        ).map_err(|e| e.to_string())?;
+
+        let expense_iter = stmt.query_map(params![format!("{:04}", year)], |row| {
+            Ok(Expense {
+                id: row.get(0)?,
+                product_name: row.get(1)?,
+                cost_price: row.get(2)?,
+                quantity: row.get(3)?,
+                total_cost: row.get(4)?,
+                date: row.get(5)?,
+                created_at: row.get(6)?,
+            })
+        }).map_err(|e| e.to_string())?;
+
+        let mut expenses = Vec::new();
+        let mut total_cost = 0.0;
+
+        for expense in expense_iter {
+            let expense = expense.map_err(|e| e.to_string())?;
+            total_cost += expense.total_cost;
+            expenses.push(expense);
+        }
+
+        Ok(ExpensesInvoiceData {
+            period: year.to_string(),
+            expenses,
+            total_cost,
+        })
+    })
+}
+
+
+#[tauri::command]
+async fn get_expenses_by_month(
+    state: tauri::State<'_, AppState>,
+    year: i32,
+    month: i32,
+) -> Result<ExpensesInvoiceData, String> {
+    println!("get_expenses_by_month called with year: {}, month: {}", year, month);
+    
+    let db_lock = state.db.lock().await;
+    let db = &*db_lock;
+
+    task::block_in_place(|| {
+        let month_pattern = format!("{:04}-{:02}", year, month);
+        println!("Month pattern: {}", month_pattern);
+        
+        let mut stmt = db.prepare(
+           "WITH product_changes AS (
+                SELECT 
+                    p.id,
+                    p.name as product_name,
+                    p.cost_price,
+                    -- For products created this month: use initial quantity + sales
+                    CASE 
+                        WHEN strftime('%Y-%m', p.created_at) = ?1 THEN 
+                            p.quantity + COALESCE((
+                                SELECT SUM(s.quantity) 
+                                FROM sales s 
+                                WHERE s.product_name = p.name
+                                AND strftime('%Y-%m', s.created_at) = ?1
+                            ), 0)
+                        -- For products created earlier: only count sales from this month
+                        ELSE COALESCE((
+                            SELECT SUM(s.quantity) 
+                            FROM sales s 
+                            WHERE s.product_name = p.name
+                            AND strftime('%Y-%m', s.created_at) = ?1
+                        ), 0)
+                    END as monthly_quantity,
+                    p.created_at,
+                    p.created_at as date
+                FROM products p
+                WHERE strftime('%Y-%m', p.created_at) = ?1 
+                   OR EXISTS (
+                       SELECT 1 FROM sales s 
+                       WHERE s.product_name = p.name 
+                       AND strftime('%Y-%m', s.created_at) = ?1
+                   )
+            )
+            SELECT 
+                id,
+                product_name,
+                cost_price,
+                monthly_quantity as quantity,
+                (cost_price * monthly_quantity) as total_cost,
+                date,
+                created_at
+            FROM product_changes
+            WHERE monthly_quantity > 0
+            ORDER BY created_at DESC"
+        ).map_err(|e| {
+            println!("Error preparing statement: {}", e);
+            e.to_string()
+        })?;
+
+        println!("Statement prepared successfully");
+
+        // Change here: pass only one parameter instead of multiple copies
+        let expense_iter = stmt.query_map(params![month_pattern], |row| {
+            Ok(Expense {
+                id: row.get(0)?,
+                product_name: row.get(1)?,
+                cost_price: row.get(2)?,
+                quantity: row.get(3)?,
+                total_cost: row.get(4)?,
+                date: row.get(5)?,
+                created_at: row.get(6)?,
+            })
+        }).map_err(|e| {
+            println!("Error querying: {}", e);
+            e.to_string()
+        })?;
+
+        // ... rest of the function remains the same
+        println!("Query executed successfully");
+
+        let mut expenses = Vec::new();
+        let mut total_cost = 0.0;
+
+        for expense in expense_iter {
+            let expense = expense.map_err(|e| {
+                println!("Error mapping row: {}", e);
+                e.to_string()
+            })?;
+            total_cost += expense.total_cost;
+            expenses.push(expense);
+        }
+
+        println!("Found {} expenses for month {}", expenses.len(), month_pattern);
+
+        let month_names = [
+            "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+            "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+        ];
+
+        Ok(ExpensesInvoiceData {
+            period: format!("{} {}", month_names[month as usize - 1], year),
+            expenses,
+            total_cost,
+        })
+    })
+}
+#[tauri::command]
+async fn get_expenses_by_day(
+    state: tauri::State<'_, AppState>,
+    date: String,
+) -> Result<ExpensesInvoiceData, String> {
+    println!("get_expenses_by_day called with date: {}", date);
+    
+    let db_lock = state.db.lock().await;
+    let db = &*db_lock;
+
+    task::block_in_place(|| {
+        let mut stmt = db.prepare(
+           "WITH product_changes AS (
+                SELECT 
+                    p.id,
+                    p.name as product_name,
+                    p.cost_price,
+                    -- For products created today: use initial quantity + sales
+                    CASE 
+                        WHEN date(p.created_at) = ?1 THEN 
+                            p.quantity + COALESCE((
+                                SELECT SUM(s.quantity) 
+                                FROM sales s 
+                                WHERE s.product_name = p.name
+                                AND date(s.created_at) = ?1
+                            ), 0)
+                        -- For products created earlier: only count sales from today
+                        ELSE COALESCE((
+                            SELECT SUM(s.quantity) 
+                            FROM sales s 
+                            WHERE s.product_name = p.name
+                            AND date(s.created_at) = ?1
+                        ), 0)
+                    END as daily_quantity,
+                    p.created_at,
+                    p.created_at as date
+                FROM products p
+                WHERE date(p.created_at) = ?1 
+                   OR EXISTS (
+                       SELECT 1 FROM sales s 
+                       WHERE s.product_name = p.name 
+                       AND date(s.created_at) = ?1
+                   )
+            )
+            SELECT 
+                id,
+                product_name,
+                cost_price,
+                daily_quantity as quantity,
+                (cost_price * daily_quantity) as total_cost,
+                date,
+                created_at
+            FROM product_changes
+            WHERE daily_quantity > 0
+            ORDER BY created_at DESC"
+        ).map_err(|e| {
+            println!("Error preparing statement: {}", e);
+            e.to_string()
+        })?;
+
+        println!("Statement prepared successfully");
+
+        let expense_iter = stmt.query_map(params![date], |row| {
+            Ok(Expense {
+                id: row.get(0)?,
+                product_name: row.get(1)?,
+                cost_price: row.get(2)?,
+                quantity: row.get(3)?,
+                total_cost: row.get(4)?,
+                date: row.get(5)?,
+                created_at: row.get(6)?,
+            })
+        }).map_err(|e| {
+            println!("Error querying: {}", e);
+            e.to_string()
+        })?;
+
+        println!("Query executed successfully");
+
+        let mut expenses = Vec::new();
+        let mut total_cost = 0.0;
+
+        for expense in expense_iter {
+            let expense = expense.map_err(|e| {
+                println!("Error mapping row: {}", e);
+                e.to_string()
+            })?;
+            total_cost += expense.total_cost;
+            expenses.push(expense);
+        }
+
+        println!("Found {} expenses for date {}", expenses.len(), date);
+
+        Ok(ExpensesInvoiceData {
+            period: date,
+            expenses,
+            total_cost,
+        })
+    })
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InvoiceItem {
@@ -941,6 +1242,8 @@ async fn get_metrics101(state: tauri::State<'_, AppState>) -> Result<Vec<Metric>
         Ok(metrics)
     })
 }
+
+
 #[tauri::command]
 async fn update_product(
     state: tauri::State<'_, AppState>,
@@ -1213,7 +1516,7 @@ conn.execute(
         
         conn.execute(
             "INSERT INTO users (username, password) VALUES (?, ?)",
-            params!["ahmed", hashed_password],
+            params!["WaelFarhat2.0@gmail.com", hashed_password],
         )?;
     }
     
@@ -1256,7 +1559,10 @@ pub fn run() {
     get_system_theme, set_theme_preference
 ,   get_client_invoices_by_year,     
     get_client_invoices_by_month,   
-    get_client_invoices,            
+    get_client_invoices,  
+       get_expenses_by_year,
+    get_expenses_by_month,
+    get_expenses_by_day,          
         ])
         .setup(|_app| {
             println!("App initialization complete");

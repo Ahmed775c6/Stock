@@ -1,4 +1,4 @@
-import { onMount, onCleanup, createSignal, Show } from 'solid-js';
+import { onMount, onCleanup, createSignal, Show, createEffect } from 'solid-js';
 import { invoke } from '@tauri-apps/api/core';
 import {
   Chart,
@@ -35,9 +35,6 @@ interface OrderItem {
   [key: string]: unknown;
 }
 
-
-
-// Modification de l'interface pour correspondre à vos données
 interface OrderEntry {
   status: string;
   date: string;
@@ -96,7 +93,7 @@ const OVChart = () => {
       setLoading(true);
       setError(null);
       const salesData = await invoke<OrderEntry[]>('get_sales');
-      console.log('fetching', salesData);
+      console.log('Fetched sales data:', salesData);
       setData(salesData);
       return salesData;
     } catch (err) {
@@ -121,9 +118,15 @@ const OVChart = () => {
     }
   };
 
-  // Create chart instances
+  // Create chart instances with current data
   const createCharts = () => {
-    if (!weeklyChartRef || !monthlyChartRef) return;
+    if (!weeklyChartRef || !monthlyChartRef) {
+      console.log('Chart refs not available yet');
+      return;
+    }
+
+    const currentData = data();
+    console.log('Creating charts with data:', currentData);
 
     const chartOptions: ChartOptions<'line'> = {
       responsive: true,
@@ -150,7 +153,7 @@ const OVChart = () => {
           },
           ticks: {
             callback: function(value) {
-              return value + ' ' + 'TND ';
+              return value + ' TND';
             }
           }
         },
@@ -161,6 +164,9 @@ const OVChart = () => {
         }
       }
     };
+
+    // Destroy existing charts before creating new ones
+    destroyCharts();
 
     // Créer le graphique hebdomadaire
     weeklyChartInstance = new Chart(weeklyChartRef, {
@@ -180,34 +186,45 @@ const OVChart = () => {
   // Générer les données hebdomadaires
   const generateWeeklyData = (): ChartDataCustom => {
     const orderData = data();
+    console.log('Generating weekly data from:', orderData);
+    
     const now = new Date();
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+    startOfWeek.setHours(0, 0, 0, 0);
+    
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
 
     const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
     const revenueByDay: Record<string, number> = Object.fromEntries(days.map(day => [day, 0]));
 
     orderData.forEach((entry: OrderEntry) => {
-      const entryDate = parseDate(entry.date);
-      if (entryDate >= startOfWeek && entryDate <= endOfWeek) {
-        const dayIndex = (entryDate.getDay() + 6) % 7;
-        const dayName = days[dayIndex];
-        
-        let revenue = 0;
-        if (entry.total_amount) {
-          revenue = entry.total_amount;
-        } else if (entry.price && entry.quantity) {
-          revenue = entry.price * entry.quantity;
-        } else if (entry.items) {
-          revenue = entry.items.reduce((sum: number, item: OrderItem) =>
-            sum + (item.quantity * parseFloat(item.current_price)), 0);
+      try {
+        const entryDate = parseDate(entry.date);
+        if (entryDate >= startOfWeek && entryDate <= endOfWeek) {
+          const dayIndex = (entryDate.getDay() + 6) % 7;
+          const dayName = days[dayIndex];
+          
+          let revenue = 0;
+          if (entry.total_amount) {
+            revenue = entry.total_amount;
+          } else if (entry.price && entry.quantity) {
+            revenue = entry.price * entry.quantity;
+          } else if (entry.items) {
+            revenue = entry.items.reduce((sum: number, item: OrderItem) =>
+              sum + (item.quantity * parseFloat(item.current_price)), 0);
+          }
+          
+          revenueByDay[dayName] += revenue;
         }
-        
-        revenueByDay[dayName] += revenue;
+      } catch (error) {
+        console.error('Error processing entry:', entry, error);
       }
     });
+
+    console.log('Weekly revenue data:', revenueByDay);
 
     return {
       labels: days,
@@ -226,6 +243,8 @@ const OVChart = () => {
   // Générer les données mensuelles
   const generateMonthlyData = (): ChartDataCustom => {
     const orderData = data();
+    console.log('Generating monthly data from:', orderData);
+    
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
@@ -233,23 +252,31 @@ const OVChart = () => {
     const revenueByDay: number[] = new Array(daysInMonth).fill(0);
 
     orderData.forEach((entry: OrderEntry) => {
-      const entryDate = parseDate(entry.date);
-      if (entryDate.getMonth() === month && entryDate.getFullYear() === year) {
-        const day = entryDate.getDate() - 1;
-        
-        let revenue = 0;
-        if (entry.total_amount) {
-          revenue = entry.total_amount;
-        } else if (entry.price && entry.quantity) {
-          revenue = entry.price * entry.quantity;
-        } else if (entry.items) {
-          revenue = entry.items.reduce((sum: number, item: OrderItem) =>
-            sum + (item.quantity * parseFloat(item.current_price)), 0);
+      try {
+        const entryDate = parseDate(entry.date);
+        if (entryDate.getMonth() === month && entryDate.getFullYear() === year) {
+          const day = entryDate.getDate() - 1;
+          
+          let revenue = 0;
+          if (entry.total_amount) {
+            revenue = entry.total_amount;
+          } else if (entry.price && entry.quantity) {
+            revenue = entry.price * entry.quantity;
+          } else if (entry.items) {
+            revenue = entry.items.reduce((sum: number, item: OrderItem) =>
+              sum + (item.quantity * parseFloat(item.current_price)), 0);
+          }
+          
+          if (day >= 0 && day < daysInMonth) {
+            revenueByDay[day] += revenue;
+          }
         }
-        
-        revenueByDay[day] += revenue;
+      } catch (error) {
+        console.error('Error processing entry:', entry, error);
       }
     });
+
+    console.log('Monthly revenue data:', revenueByDay);
 
     return {
       labels: Array.from({ length: daysInMonth }, (_, i) => i + 1),
@@ -272,11 +299,18 @@ const OVChart = () => {
 
   onMount(async () => {
     await fetchSalesData();
-    
-    // Wait for the next tick to ensure refs are set
-    setTimeout(() => {
-      createCharts();
-    }, 0);
+  });
+
+  // Use createEffect to recreate charts when data changes
+  createEffect(() => {
+    const currentData = data();
+    if (currentData.length > 0 && !loading()) {
+      console.log('Data changed, recreating charts');
+      // Use setTimeout to ensure DOM is ready
+      setTimeout(() => {
+        createCharts();
+      }, 100);
+    }
   });
 
   onCleanup(() => {
@@ -287,13 +321,6 @@ const OVChart = () => {
   const refreshData = async () => {
     try {
       await fetchSalesData();
-      
-      // Wait for the next tick to ensure data is updated
-      setTimeout(() => {
-        // Destroy existing charts and recreate them
-        destroyCharts();
-        createCharts();
-      }, 0);
     } catch (err) {
       console.error('Error in refreshData:', err);
     }
@@ -315,7 +342,7 @@ const OVChart = () => {
               <p class="text-red-600 dark:text-red-400 mb-4">Erreur: {error()}</p>
               <button 
                 onClick={refreshData}
-                class="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded"
+                class="bg-pink-600 hover:bg-pink-700 text-white p-2 rounded"
               >
                 Réessayer
               </button>
@@ -323,13 +350,13 @@ const OVChart = () => {
           </Show>
         </div>
       }>
-        <div class="flex justify-between items-center mb-4">
+        <div class="flex justify-between items-center gap-3 mb-4">
           <h2 class="w-full p-2 jsh bg-gray-200 text-black dark:text-white dark:bg-gray-600">
             Aperçu des revenus
           </h2>
           <button 
             onClick={refreshData}
-            class="bg-pink-600 hover:bg-pink-700 text-white px-3 py-1 rounded text-sm"
+            class="bg-sky-600 hover:bg-sky-700 text-white p-2  rounded-sm text-sm"
             title="Actualiser les données"
           >
             Actualiser
@@ -340,7 +367,7 @@ const OVChart = () => {
           {/* Graphique des revenus hebdomadaires */}
           <div class="chart-container mb-8">
             <h3 class="text-lg font-semibold mb-2">
-              Revenus de cette semaine (Semaine {currentWeekNumber})
+              Revenus de cette semaine (Semaine {currentWeekNumber - 1 })
             </h3>
             <div style={{ height: '300px', position: 'relative' }}>
               <canvas ref={weeklyChartRef} />

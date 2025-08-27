@@ -208,7 +208,7 @@ const ProductsTable = () => {
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages(), p + 1))}
               disabled={currentPage() === totalPages()}
-              class="px-3 py-1 rounded border disabled:opacity-50 text-white"
+              class=" px-3 py-1 rounded border disabled:opacity-50 text-white"
             >
               Suivant
             </button>

@@ -45,6 +45,14 @@ const Factures = () => {
   const [dateType, setDateType] = createSignal<"year" | "month" | "full" | "none">("none");
   const [selectedDate, setSelectedDate] = createSignal("");
 
+  // Expense invoice generation
+  const [showExpensesYearForm, setShowExpensesYearForm] = createSignal(false);
+  const [showExpensesMonthForm, setShowExpensesMonthForm] = createSignal(false);
+  const [showExpensesDayForm, setShowExpensesDayForm] = createSignal(false);
+  const [expensesSelectedYear, setExpensesSelectedYear] = createSignal(new Date().getFullYear());
+  const [expensesSelectedMonth, setExpensesSelectedMonth] = createSignal(new Date().getMonth() + 1);
+  const [expensesSelectedDay, setExpensesSelectedDay] = createSignal("");
+
   // Fetch invoices data
   createEffect(async () => {
     try {
@@ -141,6 +149,30 @@ const Factures = () => {
     }
   };
 
+  // Handle expense year invoice generation
+  const handleExpensesYearInvoice = () => {
+    if (expensesSelectedYear()) {
+      navigate(`/expenses-invoice/year/${expensesSelectedYear()}`);
+      setShowExpensesYearForm(false);
+    }
+  };
+
+  // Handle expense month invoice generation
+  const handleExpensesMonthInvoice = () => {
+    if (expensesSelectedYear() && expensesSelectedMonth()) {
+    navigate(`/expenses-invoice/month/${expensesSelectedYear()}/${expensesSelectedMonth()}`);
+      setShowExpensesMonthForm(false);
+    }
+  };
+
+  // Handle expense day invoice generation
+  const handleExpensesDayInvoice = () => {
+    if (expensesSelectedDay()) {
+      navigate(`/expenses-invoice/day/${expensesSelectedDay()}`);
+      setShowExpensesDayForm(false);
+    }
+  };
+
   // Get unique client names from invoices
   const getClientNames = () => {
     const clients = new Set<string>();
@@ -182,27 +214,52 @@ const Factures = () => {
         <Navbar />
         <div class="w-full h-full p-4 md:p-8 overflow-y-auto">
 
-          {/* Invoice Generation Buttons */}
-          <div class="flex gap-4 mb-6 flex-wrap">
-            <button
-              onClick={() => setShowYearForm(true)}
-              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Facture d'une année
-            </button>
-            <button
-              onClick={() => setShowMonthForm(true)}
-              class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              Facture d'un mois
-            </button>
-            <button
-              onClick={() => setShowClientForm(true)}
-              class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              Facture spécifique client
-            </button>
-          </div>
+          {/* Invoice Generation Buttons - Show based on active tab */}
+          <Show when={activeTab() === "sales"}>
+            <div class="flex gap-4 mb-6 flex-wrap">
+              <button
+                onClick={() => setShowYearForm(true)}
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Facture d'une année
+              </button>
+              <button
+                onClick={() => setShowMonthForm(true)}
+                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Facture d'un mois
+              </button>
+              <button
+                onClick={() => setShowClientForm(true)}
+                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Facture spécifique client
+              </button>
+            </div>
+          </Show>
+
+          <Show when={activeTab() === "expenses"}>
+            <div class="flex gap-4 mb-6 flex-wrap">
+              <button
+                onClick={() => setShowExpensesYearForm(true)}
+                class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+              >
+                Dépenses d'une année
+              </button>
+              <button
+                onClick={() => setShowExpensesMonthForm(true)}
+                class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+              >
+                Dépenses d'un mois
+              </button>
+              <button
+                onClick={() => setShowExpensesDayForm(true)}
+                class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+              >
+                Dépenses d'un jour
+              </button>
+            </div>
+          </Show>
 
           {/* Year Selection Modal */}
           <Show when={showYearForm()}>
@@ -404,7 +461,128 @@ const Factures = () => {
             </div>
           </Show>
 
-          {/* Rest of the component remains the same */}
+          {/* Expenses Year Selection Modal */}
+          <Show when={showExpensesYearForm()}>
+            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-96">
+                <h2 class="text-xl font-bold mb-4">Générer un rapport de dépenses annuel</h2>
+                <div class="mb-4">
+                  <label class="block text-sm font-medium mb-2">Sélectionner l'année</label>
+                  <select
+                    value={expensesSelectedYear()}
+                    onChange={(e) => setExpensesSelectedYear(parseInt(e.currentTarget.value))}
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  >
+                    <For each={getAvailableYears()}>
+                      {(year) => <option value={year}>{year}</option>}
+                    </For>
+                  </select>
+                </div>
+                <div class="flex justify-end gap-2">
+                  <button
+                    onClick={() => setShowExpensesYearForm(false)}
+                    class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleExpensesYearInvoice}
+                    class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                  >
+                    Générer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Show>
+
+          {/* Expenses Month Selection Modal */}
+          <Show when={showExpensesMonthForm()}>
+            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-96">
+                <h2 class="text-xl font-bold mb-4">Générer un rapport de dépenses mensuel</h2>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label class="block text-sm font-medium mb-2">Année</label>
+                    <select
+                      value={expensesSelectedYear()}
+                      onChange={(e) => setExpensesSelectedYear(parseInt(e.currentTarget.value))}
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    >
+                      <For each={getAvailableYears()}>
+                        {(year) => <option value={year}>{year}</option>}
+                      </For>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-2">Mois</label>
+                    <select
+                      value={expensesSelectedMonth()}
+                      onChange={(e) => setExpensesSelectedMonth(parseInt(e.currentTarget.value))}
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    >
+                      <For each={monthOptions}>
+                        {(month) => <option value={month.value}>{month.label}</option>}
+                      </For>
+                    </select>
+                  </div>
+                </div>
+                <div class="flex justify-end gap-2">
+                  <button
+                    onClick={() => setShowExpensesMonthForm(false)}
+                    class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleExpensesMonthInvoice}
+                    class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                  >
+                    Générer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Show>
+
+          {/* Expenses Day Selection Modal */}
+          <Show when={showExpensesDayForm()}>
+            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-96">
+                <h2 class="text-xl font-bold mb-4">Générer un rapport de dépenses quotidien</h2>
+                <div class="mb-4">
+                  <label class="block text-sm font-medium mb-2">Sélectionner la date</label>
+                  <input
+                    type="date"
+                    value={expensesSelectedDay()}
+                    onInput={(e) => setExpensesSelectedDay(e.currentTarget.value)}
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <div class="flex justify-end gap-2">
+                  <button
+                    onClick={() => setShowExpensesDayForm(false)}
+                    class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleExpensesDayInvoice}
+                    disabled={!expensesSelectedDay()}
+                    class={`px-4 py-2 text-white rounded-lg transition-colors ${
+                      expensesSelectedDay() 
+                        ? "bg-yellow-600 hover:bg-yellow-700" 
+                        : "bg-yellow-400 cursor-not-allowed"
+                    }`}
+                  >
+                    Générer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Show>
+
+          {/* Rest of the component */}
           <div class="mb-6">
             <div class="border-b border-gray-200 dark:border-gray-700">
               <nav class="flex p-2 gap-3">
@@ -418,11 +596,21 @@ const Factures = () => {
                 >
                   Factures de Vente
                 </button>
+                <button
+                  onClick={() => setActiveTab("expenses")}
+                  class={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
+                    activeTab() === "expenses"
+                      ? "border-blue-500 bg-sky-700 text-white  dark:text-blue-400"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+                  }`}
+                >
+                  Factures de Dépenses
+                </button>
               </nav>
             </div>
           </div>
 
-          {/* Show the appropriate table based on active tab */}
+          {/* Show the appropriate content based on active tab */}
           <Show when={activeTab() === "sales"}>
             {/* Your existing sales invoices table */}
             {/* Filters Section */}
@@ -596,6 +784,16 @@ const Factures = () => {
                 </div>
               </div>
             </Show>
+          </Show>
+
+          <Show when={activeTab() === "expenses"}>
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+              <h2 class="text-xl font-bold mb-4">Factures de Dépenses</h2>
+              <p class="text-gray-600 dark:text-gray-300">
+                Sélectionnez une option ci-dessus pour générer un rapport de dépenses.
+              </p>
+              {/* You can add expense-specific content here */}
+            </div>
           </Show>
 
           <Show when={activeTab() === "inventory"}>

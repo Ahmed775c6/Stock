@@ -16,7 +16,7 @@ type Invoice = {
   updated_at: string;
 };
 
-const FacturePage = () => {
+const Facture = () => {
   const params = useParams();
   const navigate = useNavigate();
   const [invoice, setInvoice] = createSignal<Invoice | null>(null);
@@ -59,13 +59,13 @@ const FacturePage = () => {
   };
 
   return (
-    <main class="w-full min-h-screen bg-gray-100 dark:bg-gray-900">
+    <main class="w-full min-h-screen bg-gray-100">
       {/* Non-printable header */}
-      <div class="print:hidden bg-white dark:bg-gray-800 shadow-sm p-4">
+      <div class="print:hidden bg-white shadow-sm p-4">
         <div class="max-w-4xl mx-auto flex justify-between items-center">
           <button
             onClick={handleBack}
-            class="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
+            class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
           >
             ← Retour
           </button>
@@ -83,7 +83,7 @@ const FacturePage = () => {
 
       {/* Invoice content */}
       <div class="p-4 print:p-0">
-        <div class="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg print:shadow-none">
+        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg print:shadow-none">
           <Show when={loading()}>
             <div class="flex justify-center items-center py-12">
               <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -91,7 +91,7 @@ const FacturePage = () => {
           </Show>
 
           <Show when={error()}>
-            <div class="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 px-4 py-3 rounded-lg m-4">
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg m-4">
               {error()}
             </div>
           </Show>
@@ -102,12 +102,12 @@ const FacturePage = () => {
                 {/* Header */}
                 <div class="flex justify-between items-start mb-8">
                   <div>
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">FACTURE</h1>
-                    <p class="text-gray-600 dark:text-gray-400">N° {inv().id}</p>
+                    <h1 class="text-3xl font-bold text-gray-900">FACTURE</h1>
+                    <p class="text-gray-600">N° {inv().id}</p>
                   </div>
                   <div class="text-right">
-                    <p class="text-gray-600 dark:text-gray-400">Date: {formatDate(inv().created_at)}</p>
-                    <p class="text-gray-600 dark:text-gray-400">Statut: 
+                    <p class="text-gray-600">Date: {formatDate(inv().created_at)}</p>
+                    <p class="text-gray-600">Statut: 
                       <span class={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
                         inv().status === "Crédit" 
                           ? "bg-rose-100 text-rose-800" 
@@ -122,38 +122,38 @@ const FacturePage = () => {
                 {/* Client Information */}
                 <div class="grid grid-cols-2 gap-8 mb-8">
                   <div>
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Client</h2>
-                    <p class="text-gray-600 dark:text-gray-400">{inv().client_name}</p>
+                    <h2 class="text-lg font-semibold text-gray-900 mb-2">Client</h2>
+                    <p class="text-gray-600">{inv().client_name}</p>
                   </div>
                   <div>
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Informations de facturation</h2>
-                    <p class="text-gray-600 dark:text-gray-400">Facture #{inv().id}</p>
-                    <p class="text-gray-600 dark:text-gray-400">Émise le: {formatDate(inv().created_at)}</p>
+                    <h2 class="text-lg font-semibold text-gray-900 mb-2">Informations de facturation</h2>
+                    <p class="text-gray-600">Facture #{inv().id}</p>
+                    <p class="text-gray-600">Émise le: {formatDate(inv().created_at)}</p>
                   </div>
                 </div>
 
                 {/* Product Details */}
                 <div class="mb-8">
-                  <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Détails de la vente</h2>
-                  <div class="border border-gray-200 dark:border-gray-600 rounded-lg">
+                  <h2 class="text-lg font-semibold text-gray-900 mb-4">Détails de la vente</h2>
+                  <div class="border border-gray-200 rounded-lg">
                     <table class="w-full">
-                      <thead class="bg-gray-50 dark:bg-gray-700">
+                      <thead class="bg-gray-50">
                         <tr>
-                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Produit
                           </th>
-                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Quantité
                           </th>
-                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Prix Unitaire
                           </th>
-                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Total
                           </th>
                         </tr>
                       </thead>
-                      <tbody class="divide-y divide-gray-200 dark:divide-gray-600">
+                      <tbody class="divide-y divide-gray-200">
                         <tr>
                           <td class="px-6 py-4">
                             <div class="flex items-center">
@@ -164,18 +164,18 @@ const FacturePage = () => {
                                   class="w-12 h-12 object-cover rounded-md mr-3"
                                 />
                               )}
-                              <span class="text-sm font-medium text-gray-900 dark:text-white">
+                              <span class="text-sm font-medium text-gray-900">
                                 {inv().product_name}
                               </span>
                             </div>
                           </td>
-                          <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                          <td class="px-6 py-4 text-sm text-gray-900">
                             {inv().quantity}
                           </td>
-                          <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                          <td class="px-6 py-4 text-sm text-gray-900">
                             {inv().price.toFixed(3)} TND
                           </td>
-                          <td class="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">
+                          <td class="px-6 py-4 text-sm font-semibold text-gray-900">
                             {inv().total_amount.toFixed(3)} TND
                           </td>
                         </tr>
@@ -188,19 +188,19 @@ const FacturePage = () => {
                 <div class="flex justify-end">
                   <div class="w-64">
                     <div class="flex justify-between py-2">
-                      <span class="text-gray-600 dark:text-gray-400">Sous-total:</span>
-                      <span class="text-gray-900 dark:text-white">{inv().total_amount.toFixed(3)} TND</span>
+                      <span class="text-gray-600">Sous-total:</span>
+                      <span class="text-gray-900">{inv().total_amount.toFixed(3)} TND</span>
                     </div>
-                    <div class="flex justify-between py-2 border-t border-gray-200 dark:border-gray-600">
-                      <span class="text-lg font-semibold text-gray-900 dark:text-white">Total:</span>
-                      <span class="text-lg font-semibold text-gray-900 dark:text-white">{inv().total_amount.toFixed(3)} TND</span>
+                    <div class="flex justify-between py-2 border-t border-gray-200">
+                      <span class="text-lg font-semibold text-gray-900">Total:</span>
+                      <span class="text-lg font-semibold text-gray-900">{inv().total_amount.toFixed(3)} TND</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Footer */}
-                <div class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-600">
-                  <p class="text-center text-gray-500 dark:text-gray-400 text-sm">
+                <div class="mt-12 pt-8 border-t border-gray-200">
+                  <p class="text-center text-gray-500 text-sm">
                     Merci pour votre confiance. Pour toute question, veuillez nous contacter.
                   </p>
                 </div>
@@ -213,4 +213,4 @@ const FacturePage = () => {
   );
 };
 
-export default FacturePage;
+export default Facture;

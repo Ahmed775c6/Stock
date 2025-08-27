@@ -11,6 +11,7 @@ import Factures from "./pages/Factures";
 import InvoiceMonth from "./pages/FactureMounth";
 import InvoiceYear from "./pages/FactureYear";
 import ClientInvoice from "./pages/ClientInvoice"; // Add this import
+import ExpensesFacture from "./pages/ExpensessFacture";
 
 render(() => 
     <Router>
@@ -24,6 +25,10 @@ render(() =>
         <Route path="/facture/:id" component={FacturePage} />
         <Route path="/invoice/:year" component={InvoiceYear} />
         <Route path="/invoice/:year/:month" component={InvoiceMonth} />
-        <Route path="/invoice/client/:clientName" component={ClientInvoice} /> {/* Add this route */}
+        <Route path="/invoice/client/:clientName" component={ClientInvoice} />
+<Route path="/expenses-invoice/year/:year" component={ExpensesFacture} />
+<Route path="/expenses-invoice/month/:year/:month" component={ExpensesFacture} />
+<Route path="/expenses-invoice/day/:date" component={ExpensesFacture} />
+      
     </Router>
 , document.getElementById("root") as HTMLElement);

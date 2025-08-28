@@ -1425,7 +1425,47 @@ async fn save_order(
         }
     })
 }
+#[tauri::command]
+async fn get_sales_by_day(
+    state: tauri::State<'_, AppState>,
+    day: String,
+) -> Result<Vec<Sale>, String> {
+    let db_lock = state.db.lock().await;
+    let db = &*db_lock;
 
+    task::block_in_place(|| {
+        let mut stmt = db.prepare(
+            "SELECT id, client_name, status, product_name, product_image, 
+             quantity, price, total_amount, date, created_at, updated_at 
+             FROM sales 
+             WHERE date(date) = date(?1)
+             ORDER BY created_at DESC"
+        ).map_err(|e| e.to_string())?;
+        
+        let sale_iter = stmt.query_map(params![day], |row| {
+            Ok(Sale {
+                id: row.get(0)?,
+                client_name: row.get(1)?,
+                status: row.get(2)?,
+                product_name: row.get(3)?,
+                product_image: row.get(4)?,
+                quantity: row.get(5)?,
+                price: row.get(6)?,
+                total_amount: row.get(7)?,
+                date: row.get(8)?,
+                created_at: row.get(9)?,
+                updated_at: row.get(10)?,
+            })
+        }).map_err(|e| e.to_string())?;
+        
+        let mut sales = Vec::new();
+        for sale in sale_iter {
+            sales.push(sale.map_err(|e| e.to_string())?);
+        }
+        
+        Ok(sales)
+    })
+}
 
 #[tauri::command]
 async fn get_sale_by_id(
@@ -1562,7 +1602,8 @@ pub fn run() {
     get_client_invoices,  
        get_expenses_by_year,
     get_expenses_by_month,
-    get_expenses_by_day,          
+    get_expenses_by_day, 
+     get_sales_by_day,         
         ])
         .setup(|_app| {
             println!("App initialization complete");

@@ -1,5 +1,6 @@
 // SaleForm.tsx
 import { createSignal, Show, onMount, For } from "solid-js";
+import { createStore } from "solid-js/store";
 import { invoke } from "@tauri-apps/api/core";
 
 export type Product = {
@@ -47,7 +48,7 @@ const SaleForm = (props: SaleFormProps) => {
   };
 
   const [products, setProducts] = createSignal<Product[]>([]);
-  const [formData, setFormData] = createSignal<SaleFormData>({
+  const [formData, setFormData] = createStore<SaleFormData>({
     clientName: "",
     status: "",
     items: [],
@@ -70,147 +71,158 @@ const SaleForm = (props: SaleFormProps) => {
   });
 
   const handleInputChange = (field: keyof SaleFormData, value: any) => {
-    setFormData({ ...formData(), [field]: value });
+    setFormData(field, value);
     setError(""); // Clear error on input change
   };
 
   const addProductItem = () => {
-    const newItems = [...formData().items, {
+    const newItem: OrderItem = {
       productName: "",
       quantity: 1,
       price: 0,
       total: 0
-    }];
-    setFormData({ ...formData(), items: newItems });
+    };
+    setFormData('items', [...formData.items, newItem]);
   };
 
   const removeProductItem = (index: number) => {
-    const newItems = formData().items.filter((_, i) => i !== index);
-    const totalAmount = calculateTotal(newItems);
-    setFormData({ ...formData(), items: newItems, totalAmount });
+    const newItems = formData.items.filter((_, i) => i !== index);
+    const totalAmount = newItems.reduce((total, item) => total + item.total, 0);
+    setFormData({ items: newItems, totalAmount });
   };
 
   const updateProductItem = (index: number, field: keyof OrderItem, value: any) => {
-    const newItems = [...formData().items];
-    newItems[index] = { ...newItems[index], [field]: value };
-    
-    // If product name changes, update the price
-    if (field === 'productName') {
-      const selectedProduct = products().find(p => p.name === value);
-      if (selectedProduct) {
-        newItems[index].price = selectedProduct.price;
-        newItems[index].total = selectedProduct.price * newItems[index].quantity;
-      }
-    }
-    
-    // If quantity changes, update the total
     if (field === 'quantity') {
-      newItems[index].total = newItems[index].price * value;
-    }
-    
-    const totalAmount = calculateTotal(newItems);
-    setFormData({ ...formData(), items: newItems, totalAmount });
-  };
-
-  const calculateTotal = (items: OrderItem[]) => {
-    return items.reduce((total, item) => total + item.total, 0);
-  };
-
-const handleSubmit = async (e: Event) => {
-  e.preventDefault();
-  setIsSubmitting(true);
-  setError("");
-
-  try {
-    // Validate all items before submitting
-    for (const item of formData().items) {
-      if (!item.productName) {
-        throw new Error("Veuillez sélectionner un produit pour tous les articles");
-      }
-      
-      if (item.quantity <= 0) {
-        throw new Error("La quantité doit être supérieure à zéro pour tous les articles");
-      }
-      
-      // Check if product has sufficient quantity
-      const product = products().find(p => p.name === item.productName);
-      if (product && item.quantity > product.quantity) {
-        throw new Error(`Quantité insuffisante pour "${product.name}". Disponible: ${product.quantity}, Demandée: ${item.quantity}`);
-      }
-    }
-
-    // Save each product item as a separate order
-    for (const item of formData().items) {
-      const orderData = {
-        clientName: formData().clientName,
-        status: formData().status,
-        productName: item.productName,
-        date: formData().date,
-        quantity: item.quantity,
-      };
-
-      console.log("Saving order:", orderData);
-      
-      await invoke('save_order', {
-        order: {
-          client_name: orderData.clientName,
-          status: orderData.status,
-          product_name: orderData.productName,
-          date: orderData.date,
-          quantity: orderData.quantity,
-        }
-      });
-    }
-    
-    console.log("All orders saved successfully");
-    
-    // Call the parent callback for UI updates
-    props.onSave(formData());
-    
-    // Reset form and close
-    setFormData({
-      clientName: "",
-      status: "",
-      items: [],
-      date: formatDateTimeLocal(new Date()),
-      totalAmount: 0,
-    });
-    
-    props.onClose();
-    
-  } catch (error) {
-    console.error('Error saving order:', error);
-    
-    // Handle specific error messages
-    if (error instanceof Error) {
-      const errorMessage = error.message;
-      
-      // Map common error messages to user-friendly French messages
-      if (errorMessage.includes('Insufficient product quantity')) {
-        const match = errorMessage.match(/Available: (\d+), Requested: (\d+)/);
-        if (match) {
-          setError(`Stock insuffisant. Disponible: ${match[1]}, Demandé: ${match[2]}`);
-        } else {
-          setError('Stock insuffisant pour ce produit');
-        }
-      } 
-      else if (errorMessage.includes('Product') && errorMessage.includes('not found')) {
-        setError('Produit non trouvé dans la base de données');
-      }
-      else if (errorMessage.includes('quantity') || errorMessage.includes('quantité')) {
-        setError(errorMessage); // Use the specific quantity error message
-      }
-      else {
-        // Generic error mapping
-        setError(`Erreur: ${errorMessage}`);
+      // Allow empty string for better UX during editing
+      if (value === '') {
+        setFormData('items', index, {
+          [field]: 0,
+          total: 0
+        });
+      } else {
+        const numericValue = parseInt(value) || 0;
+        const newTotal = formData.items[index].price * numericValue;
+        setFormData('items', index, {
+          [field]: numericValue,
+          total: newTotal
+        });
       }
     } else {
-      setError('Erreur inconnue lors de la sauvegarde');
+      setFormData('items', index, field, value);
+      
+      // If product name changes, update the price and total
+      if (field === 'productName') {
+        const selectedProduct = products().find(p => p.name === value);
+        if (selectedProduct) {
+          const newTotal = selectedProduct.price * formData.items[index].quantity;
+          setFormData('items', index, {
+            price: selectedProduct.price,
+            total: newTotal
+          });
+        }
+      }
     }
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+    
+    // Update total amount
+    const totalAmount = formData.items.reduce((total, item) => total + item.total, 0);
+    setFormData('totalAmount', totalAmount);
+  };
+
+  const handleSubmit = async (e: Event) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      // Validate all items before submitting
+      for (const item of formData.items) {
+        if (!item.productName) {
+          throw new Error("Veuillez sélectionner un produit pour tous les articles");
+        }
+        
+        if (item.quantity <= 0) {
+          throw new Error("La quantité doit être supérieure à zéro pour tous les articles");
+        }
+        
+        // Check if product has sufficient quantity
+        const product = products().find(p => p.name === item.productName);
+        if (product && item.quantity > product.quantity) {
+          throw new Error(`Quantité insuffisante pour "${product.name}". Disponible: ${product.quantity}, Demandée: ${item.quantity}`);
+        }
+      }
+
+      // Save each product item as a separate order
+      for (const item of formData.items) {
+        const orderData = {
+          clientName: formData.clientName,
+          status: formData.status,
+          productName: item.productName,
+          date: formData.date,
+          quantity: item.quantity,
+        };
+
+        console.log("Saving order:", orderData);
+        
+        await invoke('save_order', {
+          order: {
+            client_name: orderData.clientName,
+            status: orderData.status,
+            product_name: orderData.productName,
+            date: orderData.date,
+            quantity: orderData.quantity,
+          }
+        });
+      }
+      
+      console.log("All orders saved successfully");
+      
+      // Call the parent callback for UI updates
+      props.onSave({ ...formData });
+      
+      // Reset form and close
+      setFormData({
+        clientName: "",
+        status: "",
+        items: [],
+        date: formatDateTimeLocal(new Date()),
+        totalAmount: 0,
+      });
+      
+      props.onClose();
+      
+    } catch (error) {
+      console.error('Error saving order:', error);
+      
+      // Handle specific error messages
+      if (error instanceof Error) {
+        const errorMessage = error.message;
+        
+        // Map common error messages to user-friendly French messages
+        if (errorMessage.includes('Insufficient product quantity')) {
+          const match = errorMessage.match(/Available: (\d+), Requested: (\d+)/);
+          if (match) {
+            setError(`Stock insuffisant. Disponible: ${match[1]}, Demandé: ${match[2]}`);
+          } else {
+            setError('Stock insuffisant pour ce produit');
+          }
+        } 
+        else if (errorMessage.includes('Product') && errorMessage.includes('not found')) {
+          setError('Produit non trouvé dans la base de données');
+        }
+        else if (errorMessage.includes('quantity') || errorMessage.includes('quantité')) {
+          setError(errorMessage); // Use the specific quantity error message
+        }
+        else {
+          // Generic error mapping
+          setError(`Erreur: ${errorMessage}`);
+        }
+      } else {
+        setError('Erreur inconnue lors de la sauvegarde');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <Show when={props.show}>
@@ -233,7 +245,7 @@ const handleSubmit = async (e: Event) => {
               <input
                 type="text"
                 required
-                value={formData().clientName}
+                value={formData.clientName}
                 onInput={(e) => handleInputChange("clientName", e.currentTarget.value)}
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition-all bg-gray-700 text-white"
                 placeholder="Entrez le nom du client"
@@ -246,7 +258,7 @@ const handleSubmit = async (e: Event) => {
                 Statut
               </label>
               <select
-                value={formData().status}
+                value={formData.status}
                 onChange={(e) => handleInputChange("status", e.currentTarget.value)}
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition-all bg-gray-700 text-white"
                 disabled={isSubmitting()}
@@ -272,7 +284,7 @@ const handleSubmit = async (e: Event) => {
                 </button>
               </div>
               
-              <For each={formData().items}>
+              <For each={formData.items}>
                 {(item, index) => (
                   <div class="grid grid-cols-12 gap-2 mb-3 p-3 bg-gray-700 rounded-lg">
                     <div class="col-span-5">
@@ -299,8 +311,8 @@ const handleSubmit = async (e: Event) => {
                         type="number"
                         required
                         min="1"
-                        value={item.quantity}
-                        onInput={(e) => updateProductItem(index(), 'quantity', parseInt(e.currentTarget.value) || 1)}
+                        value={item.quantity === 0 ? '' : item.quantity}
+                        onInput={(e) => updateProductItem(index(), 'quantity', e.currentTarget.value)}
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition-all bg-gray-600 text-white"
                         placeholder="Quantité"
                         disabled={isSubmitting()}
@@ -335,7 +347,7 @@ const handleSubmit = async (e: Event) => {
               <input
                 type="datetime-local"
                 required
-                value={formData().date}
+                value={formData.date}
                 onInput={(e) => handleInputChange("date", e.currentTarget.value)}
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition-all bg-gray-700 text-white"
                 disabled={isSubmitting()}
@@ -346,7 +358,7 @@ const handleSubmit = async (e: Event) => {
               <div class="flex justify-between items-center">
                 <span class="text-sm font-medium text-gray-200">Total de la commande:</span>
                 <span class="text-lg font-bold text-emerald-400">
-                  {formData().totalAmount.toFixed(3)} TND
+                  {formData.totalAmount.toFixed(3)} TND
                 </span>
               </div>
             </div>
@@ -355,15 +367,15 @@ const handleSubmit = async (e: Event) => {
               <button
                 type="button"
                 onClick={props.onClose}
-                class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+                class="px-4 py-2 bg-gray-200 text-gray-800 rounded-sm hover:bg-gray-300 transition-colors"
                 disabled={isSubmitting()}
               >
                 Annuler
               </button>
               <button
                 type="submit"
-                class="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors disabled:opacity-50"
-                disabled={isSubmitting() || formData().items.length === 0}
+                class="px-4 py-2 bg-emerald-600 text-white rounded-sm hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                disabled={isSubmitting() || formData.items.length === 0}
               >
                 {isSubmitting() ? "Ajout..." : "Ajouter la vente"}
               </button>

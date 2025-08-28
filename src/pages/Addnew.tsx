@@ -231,9 +231,9 @@ const Addnew: Component = () => {
               </div>
 
               {/* Right Column - Preview */}
-              <div class="flex flex-col p-4 items-center">
+              <div class="flex flex-col p-4 h-full items-center">
                 <h2 class="text-lg font-medium mb-4">Aperçu du Produit</h2>
-                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-md w-full h-full max-h-96">
+                <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-md w-full h-full ">
                   {imagePreview() ? (
                     <img src={imagePreview()} alt="Preview" class="w-full h-48 object-contain mb-4 rounded-md" />
                   ) : (
@@ -278,7 +278,7 @@ const Addnew: Component = () => {
                     {success()}
                   </div>
                   <button 
-                    class='bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-md transition-colors'
+                    class='bg-sky-600 hover:bg-sky-700 text-white py-2 px-6 rounded-md transition-colors'
                     onClick={() => setSuccess('')}
                   >
                     Ok

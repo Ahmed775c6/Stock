@@ -1,5 +1,5 @@
 import { createSignal ,Show,onMount  } from "solid-js";
-import logo from "./assets/logo.svg";
+import logo from "./assets/logo.png";
 import { invoke } from "@tauri-apps/api/core";
 import { useNavigate } from "@solidjs/router";
 
@@ -65,13 +65,13 @@ function App() {
      <Show when={!checkingSession()} fallback={
         <div class="text-lg">Checking session...</div>
       }>
-      <h1 class="text-5xl font-semibold text-blue-500">Welcome Back</h1>
+      <h1 class="text-5xl font-semibold text-violet-500">Welcome Back</h1>
 
       <div class="row">
  
-        <a href="https://solidjs.com" target="_blank">
+      
           <img src={logo} class="logo solid" alt="Solid logo" />
-        </a>
+     
       </div>
       <p>Login to your account </p>
        <Show when={error()}>
@@ -105,7 +105,7 @@ function App() {
             </button>
 
       </form></Show>
-      <footer class="w-full p-2 bg-gray-800 text-white absolute bottom-0 left-0 text-center">Devolopped by SkaroIt @2025</footer>
+      <footer class="w-full p-2 bg-violet-700 text-white absolute bottom-0 left-0 text-center">Devolopped by Chouikh_Ahmed & Sassi_Koussai @2025</footer>
    
     </main>
      

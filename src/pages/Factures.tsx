@@ -5,6 +5,7 @@ import { useNavigate } from "@solidjs/router";
 import Navbar from "../components/Navbar";
 import InventoryInvoices from "../components/InventoryInvoices";
 
+
 type Invoice = {
   id: number;
   client_name: string;
@@ -26,6 +27,8 @@ const Factures = () => {
   const [error, setError] = createSignal("");
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = createSignal("sales");
+const [showDayForm, setShowDayForm] = createSignal(false);
+const [selectedDay, setSelectedDay] = createSignal(new Date().toISOString().split('T')[0]);
   
   // Filters
   const [clientFilter, setClientFilter] = createSignal("");
@@ -172,7 +175,12 @@ const Factures = () => {
       setShowExpensesDayForm(false);
     }
   };
-
+const handleDayInvoice = () => {
+  if (selectedDay()) {
+    navigate(`/invoice/day/${selectedDay()}`);
+    setShowDayForm(false);
+  }
+};
   // Get unique client names from invoices
   const getClientNames = () => {
     const clients = new Set<string>();
@@ -217,21 +225,27 @@ const Factures = () => {
           {/* Invoice Generation Buttons - Show based on active tab */}
           <Show when={activeTab() === "sales"}>
             <div class="flex gap-4 mb-6 flex-wrap">
+           <button
+  onClick={() => setShowDayForm(true)}
+  class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
+>
+  Facture d'un jour
+</button>
               <button
                 onClick={() => setShowYearForm(true)}
-                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
               >
                 Facture d'une année
               </button>
               <button
                 onClick={() => setShowMonthForm(true)}
-                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
               >
                 Facture d'un mois
               </button>
               <button
                 onClick={() => setShowClientForm(true)}
-                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
               >
                 Facture spécifique client
               </button>
@@ -242,19 +256,19 @@ const Factures = () => {
             <div class="flex gap-4 mb-6 flex-wrap">
               <button
                 onClick={() => setShowExpensesYearForm(true)}
-                class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                class="px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors"
               >
                 Dépenses d'une année
               </button>
               <button
                 onClick={() => setShowExpensesMonthForm(true)}
-                class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                class="px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors"
               >
                 Dépenses d'un mois
               </button>
               <button
                 onClick={() => setShowExpensesDayForm(true)}
-                class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+                class="px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors"
               >
                 Dépenses d'un jour
               </button>
@@ -295,6 +309,41 @@ const Factures = () => {
               </div>
             </div>
           </Show>
+<Show when={showDayForm()}>
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-96">
+      <h2 class="text-xl font-bold mb-4">Générer une facture quotidienne</h2>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-2">Sélectionner la date</label>
+        <input
+          type="date"
+          value={selectedDay()}
+          onInput={(e) => setSelectedDay(e.currentTarget.value)}
+          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+        />
+      </div>
+      <div class="flex justify-end gap-2">
+        <button
+          onClick={() => setShowDayForm(false)}
+          class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
+        >
+          Annuler
+        </button>
+        <button
+          onClick={handleDayInvoice}
+          disabled={!selectedDay()}
+          class={`px-4 py-2 text-white rounded-lg transition-colors ${
+            selectedDay() 
+              ? "bg-teal-600 hover:bg-teal-700" 
+              : "bg-teal-400 cursor-not-allowed"
+          }`}
+        >
+          Générer
+        </button>
+      </div>
+    </div>
+  </div>
+</Show>
 
           {/* Month Selection Modal */}
           <Show when={showMonthForm()}>
@@ -590,8 +639,8 @@ const Factures = () => {
                   onClick={() => setActiveTab("sales")}
                   class={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
                     activeTab() === "sales"
-                      ? "border-blue-500 bg-sky-700 text-white  dark:text-blue-400"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+                      ? "border-blue-500 bg-sky-700 text-white  "
+                      : "border-transparent bg-black  hover:border-gray-300 "
                   }`}
                 >
                   Factures de Vente
@@ -600,8 +649,8 @@ const Factures = () => {
                   onClick={() => setActiveTab("expenses")}
                   class={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
                     activeTab() === "expenses"
-                      ? "border-blue-500 bg-sky-700 text-white  dark:text-blue-400"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+                      ? "border-blue-500 bg-sky-700 text-white  "
+                      : "border-transparent text-white bg-black  hover:border-gray-300  dark:hover:text-gray-300"
                   }`}
                 >
                   Factures de Dépenses
